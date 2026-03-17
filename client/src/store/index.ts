@@ -95,6 +95,7 @@ const mockUsers: User[] = [
   { id: '1', name: 'Admin User', username: 'admin', role: 'ADMIN' },
   { id: '2', name: 'John Doe', username: 'john', role: 'EMPLOYEE' },
   { id: '3', name: 'Jane Smith', username: 'jane', role: 'EMPLOYEE' },
+  { id: '4', name: 'Mike Johnson', username: 'mike', role: 'EMPLOYEE' },
 ];
 
 const mockShiftTypes: ShiftType[] = [
@@ -169,43 +170,125 @@ export const useStore = create<AppState>()(
 
         const newShifts: Shift[] = [];
         
-        // Loop through 7 days (Thu - Wed)
+        // Track how many days off each employee gets this week
+        const employeeDaysOff = new Map<string, number>();
+        employees.forEach(emp => employeeDaysOff.set(emp.id, 0));
+
+        // Generate the 7 days array
+        const weekDays: {dateString: string, dayOfWeek: number, isWeekend: boolean}[] = [];
         for (let i = 0; i < 7; i++) {
           const date = new Date(weekStartDate);
           date.setDate(date.getDate() + i);
-          const dateString = date.toISOString().split('T')[0];
-          const dayOfWeek = date.getDay(); // 0-6
-
-          employees.forEach((emp, index) => {
-             // Check if employee has approved time off for this day
-             const hasTimeOff = state.availabilityRequests.some(req => {
-               if (req.status !== 'APPROVED' || req.userId !== emp.id) return false;
-               return req.days.some(d => {
-                 if (req.type === 'WEEKLY' && d.date === dateString && d.isOff) return true;
-                 if (req.type === 'TEMPLATE' && d.dayOfWeek === dayOfWeek && d.isOff) return true;
-                 return false;
-               });
-             });
-
-             if (hasTimeOff) return; // Skip scheduling
-
-             // Check for existing shifts
-             const hasShiftAlready = state.shifts.some(s => s.userId === emp.id && s.date === dateString) || newShifts.some(s => s.userId === emp.id && s.date === dateString);
-             if (hasShiftAlready) return;
-
-             // Assign a shift type (round robin for demo)
-             const shiftType = state.shiftTypes[(index + i) % state.shiftTypes.length];
-             
-             // Realistically check 10h gap here, for mockup we assume standard shifts don't overlap previous day's end with next day's start by less than 10h.
-             
-             newShifts.push({
-               id: uuidv4(),
-               userId: emp.id,
-               shiftTypeId: shiftType.id,
-               date: dateString
-             });
+          weekDays.push({
+             dateString: date.toISOString().split('T')[0],
+             dayOfWeek: date.getDay(),
+             isWeekend: date.getDay() === 0 || date.getDay() === 6
           });
         }
+        
+        // Ensure everyone gets at least 2 days off (prioritizing weekends if possible)
+        employees.forEach(emp => {
+           // We will randomly pick 2 indices to be days off for this employee
+           let offIndices: number[] = [];
+           
+           // If they have approved time off, use those first
+           weekDays.forEach((day, index) => {
+              const hasTimeOff = state.availabilityRequests.some(req => {
+                if (req.status !== 'APPROVED' || req.userId !== emp.id) return false;
+                return req.days.some(d => {
+                  if (req.type === 'WEEKLY' && d.date === day.dateString && d.isOff) return true;
+                  if (req.type === 'TEMPLATE' && d.dayOfWeek === day.dayOfWeek && d.isOff) return true;
+                  return false;
+                });
+              });
+              
+              if (hasTimeOff && offIndices.length < 2) {
+                 offIndices.push(index);
+              }
+           });
+           
+           // Fill the rest with random days if they don't have enough requested days off
+           while (offIndices.length < 2) {
+              const r = Math.floor(Math.random() * 7);
+              if (!offIndices.includes(r)) {
+                 offIndices.push(r);
+              }
+           }
+           
+           employeeDaysOff.set(emp.id, offIndices[0] + (offIndices[1] * 10)); // just store a hash of their off days
+        });
+
+        // Loop through the 7 days to assign shifts
+        weekDays.forEach((day, dayIndex) => {
+          
+          employees.forEach((emp, empIndex) => {
+             // 1. Check if it's their designated day off
+             const offHash = employeeDaysOff.get(emp.id) || 0;
+             const isOffDay = (offHash % 10 === dayIndex) || (Math.floor(offHash / 10) === dayIndex);
+             if (isOffDay) return; // Skip scheduling
+
+             // 2. Check if they already have a shift today
+             const hasShiftAlready = state.shifts.some(s => s.userId === emp.id && s.date === day.dateString) || newShifts.some(s => s.userId === emp.id && s.date === day.dateString);
+             if (hasShiftAlready) return;
+
+             // 3. Find a valid shift type that respects the 10-hour gap from yesterday
+             let assignedShiftType: ShiftType | null = null;
+             
+             // Simple logic: we try shifts in order, offset by the employee index to distribute them
+             const sortedShiftTypes = [...state.shiftTypes];
+             // Try to rotate shifts fairly
+             const shiftTypeStartIndex = (dayIndex + empIndex) % sortedShiftTypes.length;
+             
+             for (let i = 0; i < sortedShiftTypes.length; i++) {
+                const potentialShift = sortedShiftTypes[(shiftTypeStartIndex + i) % sortedShiftTypes.length];
+                
+                // If it's not the first day, check gap with previous day's shift
+                if (dayIndex > 0) {
+                   const prevDay = weekDays[dayIndex - 1].dateString;
+                   const prevShiftData = newShifts.find(s => s.userId === emp.id && s.date === prevDay) || 
+                                         state.shifts.find(s => s.userId === emp.id && s.date === prevDay);
+                   
+                   if (prevShiftData) {
+                      const prevShiftType = state.shiftTypes.find(st => st.id === prevShiftData.shiftTypeId);
+                      if (prevShiftType) {
+                         // Parse times to compare (simplified logic assuming "HH:MM")
+                         const prevEndHour = parseInt(prevShiftType.endTime.split(':')[0]);
+                         // Adjust for shifts crossing midnight
+                         const actualPrevEndHour = prevEndHour < parseInt(prevShiftType.startTime.split(':')[0]) ? prevEndHour + 24 : prevEndHour;
+                         
+                         const nextStartHour = parseInt(potentialShift.startTime.split(':')[0]);
+                         const actualNextStartHour = nextStartHour + 24; // It's the next day
+                         
+                         const gapHours = actualNextStartHour - actualPrevEndHour;
+                         
+                         // Enforce 10 hour gap
+                         if (gapHours >= 10) {
+                            assignedShiftType = potentialShift;
+                            break; // Found a valid shift!
+                         }
+                      }
+                   } else {
+                      // No shift yesterday, anything is fine
+                      assignedShiftType = potentialShift;
+                      break;
+                   }
+                } else {
+                   // First day of week, anything is fine for demo purposes (would need to check last Wed in real app)
+                   assignedShiftType = potentialShift;
+                   break;
+                }
+             }
+
+             if (assignedShiftType) {
+               newShifts.push({
+                 id: uuidv4(),
+                 userId: emp.id,
+                 shiftTypeId: assignedShiftType.id,
+                 date: day.dateString
+               });
+             }
+          });
+        });
         
         set((state) => {
           return { shifts: [...state.shifts, ...newShifts] }
