@@ -2,9 +2,10 @@ import { useState } from "react";
 import { useStore, ShiftType, Shift } from "@/store";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent, useDraggable, useDroppable } from '@dnd-kit/core';
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent, useDraggable, useDroppable, MouseSensor, TouchSensor } from '@dnd-kit/core';
 import { ChevronLeft, ChevronRight, Wand2, GripVertical, Trash2, CalendarDays } from "lucide-react";
 import { format, addDays, startOfWeek } from "date-fns";
+import { useToast } from "@/hooks/use-toast";
 
 const DraggableShiftType = ({ shiftType }: { shiftType: ShiftType }) => {
   const { attributes, listeners, setNodeRef, transform } = useDraggable({
@@ -80,6 +81,7 @@ export default function AdminSchedule() {
   const updateShift = useStore(state => state.updateShift);
   const deleteShift = useStore(state => state.deleteShift);
   const autoSchedule = useStore(state => state.autoSchedule);
+  const { toast } = useToast();
   
   const employees = users.filter(u => u.role === 'EMPLOYEE');
   
@@ -90,7 +92,8 @@ export default function AdminSchedule() {
   const handleNextWeek = () => setCurrentDate(addDays(currentDate, 7));
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 10 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
     useSensor(KeyboardSensor)
   );
 
@@ -106,6 +109,25 @@ export default function AdminSchedule() {
     
     if (activeData?.type === 'ShiftType') {
       const shiftType = activeData.shiftType as ShiftType;
+      
+      // Check weekly limits before adding manually
+      if (shiftType.maxPerWeek !== undefined && shiftType.maxPerWeek > 0) {
+        // Count how many of this shift type exist in the currently viewed week
+        const currentWeekStrDates = weekDays.map(d => format(d, "yyyy-MM-dd"));
+        const shiftCountThisWeek = shifts.filter(
+          s => s.shiftTypeId === shiftType.id && currentWeekStrDates.includes(s.date)
+        ).length;
+        
+        if (shiftCountThisWeek >= shiftType.maxPerWeek) {
+          toast({
+            title: "Limit Reached",
+            description: `Cannot add more "${shiftType.name}" shifts. Weekly limit of ${shiftType.maxPerWeek} reached.`,
+            variant: "destructive"
+          });
+          return;
+        }
+      }
+      
       addShift({
         userId: targetUserId,
         date: targetDate,
@@ -147,7 +169,7 @@ export default function AdminSchedule() {
             </Button>
           </div>
           
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto touch-pan-x">
             <div className="min-w-[1000px]">
                 <div className="grid grid-cols-[200px_repeat(7,1fr)] bg-muted/20 border-b">
                   <div className="p-4 font-semibold text-muted-foreground border-r">Employee</div>

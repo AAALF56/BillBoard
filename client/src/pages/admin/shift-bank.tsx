@@ -20,7 +20,8 @@ export default function AdminShiftBank() {
     name: "",
     color: "#3b82f6",
     startTime: "09:00",
-    endTime: "17:00"
+    endTime: "17:00",
+    maxPerWeek: 14
   });
 
   const handleOpenDialog = (shift?: ShiftType) => {
@@ -29,7 +30,8 @@ export default function AdminShiftBank() {
         name: shift.name,
         color: shift.color,
         startTime: shift.startTime,
-        endTime: shift.endTime
+        endTime: shift.endTime,
+        maxPerWeek: shift.maxPerWeek ?? 14
       });
       setEditingId(shift.id);
     } else {
@@ -37,7 +39,8 @@ export default function AdminShiftBank() {
         name: "",
         color: "#3b82f6",
         startTime: "09:00",
-        endTime: "17:00"
+        endTime: "17:00",
+        maxPerWeek: 14
       });
       setEditingId(null);
     }
@@ -78,6 +81,9 @@ export default function AdminShiftBank() {
             <CardContent>
               <div className="text-sm font-medium bg-muted px-3 py-1.5 rounded-md inline-block">
                 {shift.startTime} - {shift.endTime}
+              </div>
+              <div className="text-xs text-muted-foreground mt-2">
+                Max per week: <span className="font-semibold text-foreground">{shift.maxPerWeek ?? '∞'}</span>
               </div>
             </CardContent>
             <CardFooter className="pt-0 flex justify-end gap-2 border-t mt-4 py-3 bg-muted/20">
@@ -134,6 +140,17 @@ export default function AdminShiftBank() {
                   required
                 />
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="maxPerWeek">Max Instances Per Week</Label>
+              <Input 
+                id="maxPerWeek" 
+                type="number"
+                min="1"
+                value={formData.maxPerWeek}
+                onChange={(e) => setFormData({...formData, maxPerWeek: parseInt(e.target.value) || 0})}
+                required
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="color">Color Code</Label>

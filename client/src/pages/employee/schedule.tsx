@@ -39,7 +39,7 @@ export default function EmployeeSchedule() {
           </Button>
         </div>
         
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto touch-pan-x">
           <div className="min-w-[1000px]">
               <div className="grid grid-cols-[200px_repeat(7,1fr)] bg-muted/20 border-b">
                 <div className="p-4 font-semibold text-muted-foreground border-r">Employee</div>

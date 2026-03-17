@@ -18,6 +18,7 @@ export interface ShiftType {
   color: string;
   startTime: string; // "09:00"
   endTime: string;   // "17:00"
+  maxPerWeek: number; // max instances allowed per week
 }
 
 export interface Shift {
@@ -99,9 +100,9 @@ const mockUsers: User[] = [
 ];
 
 const mockShiftTypes: ShiftType[] = [
-  { id: '1', name: 'Morning', color: '#3b82f6', startTime: '09:00', endTime: '17:00' },
-  { id: '2', name: 'Evening', color: '#8b5cf6', startTime: '17:00', endTime: '01:00' },
-  { id: '3', name: 'Night', color: '#1e3a8a', startTime: '01:00', endTime: '09:00' },
+  { id: '1', name: 'Morning', color: '#3b82f6', startTime: '09:00', endTime: '17:00', maxPerWeek: 14 },
+  { id: '2', name: 'Evening', color: '#8b5cf6', startTime: '17:00', endTime: '01:00', maxPerWeek: 14 },
+  { id: '3', name: 'Night', color: '#1e3a8a', startTime: '01:00', endTime: '09:00', maxPerWeek: 7 },
 ];
 
 export const useStore = create<AppState>()(
@@ -233,13 +234,25 @@ export const useStore = create<AppState>()(
              const hasShiftAlready = state.shifts.some(s => s.userId === emp.id && s.date === day.dateString) || newShifts.some(s => s.userId === emp.id && s.date === day.dateString);
              if (hasShiftAlready) return;
 
-             // 3. Find a valid shift type that respects the 10-hour gap from yesterday
+             // 3. Find a valid shift type that respects the 10-hour gap from yesterday and weekly limits
              let assignedShiftType: ShiftType | null = null;
              const sortedShiftTypes = [...state.shiftTypes];
              const shiftTypeStartIndex = (dayIndex + empIndex) % sortedShiftTypes.length;
              
              for (let i = 0; i < sortedShiftTypes.length; i++) {
                 const potentialShift = sortedShiftTypes[(shiftTypeStartIndex + i) % sortedShiftTypes.length];
+                
+                // Check weekly limit for this shift type
+                if (potentialShift.maxPerWeek !== undefined && potentialShift.maxPerWeek > 0) {
+                  const currentWeekStrDates = weekDays.map(d => d.dateString);
+                  const shiftCountThisWeek = 
+                    state.shifts.filter(s => s.shiftTypeId === potentialShift.id && currentWeekStrDates.includes(s.date)).length +
+                    newShifts.filter(s => s.shiftTypeId === potentialShift.id).length;
+                  
+                  if (shiftCountThisWeek >= potentialShift.maxPerWeek) {
+                    continue; // Skip this shift type, limit reached
+                  }
+                }
                 
                 if (dayIndex > 0) {
                    const prevDay = weekDays[dayIndex - 1].dateString;
