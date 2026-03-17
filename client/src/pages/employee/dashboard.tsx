@@ -1,6 +1,6 @@
 import { useStore } from "@/store";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Clock, Calendar as CalendarIcon, Inbox } from "lucide-react";
+import { Clock, Calendar as CalendarIcon, Inbox, CalendarSync } from "lucide-react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 
@@ -46,30 +46,35 @@ export default function EmployeeDashboard() {
         </Card>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Quick Links</CardTitle>
-            <CardDescription>Manage your time and view the schedule.</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-4">
-            <Link href="/employee/my-shifts">
-              <Button className="w-full justify-start h-12" variant="outline">
-                <Clock className="mr-2 h-4 w-4" /> View My Shifts
-              </Button>
-            </Link>
-            <Link href="/employee/schedule">
-              <Button className="w-full justify-start h-12" variant="outline">
-                <CalendarIcon className="mr-2 h-4 w-4" /> View Full Schedule
-              </Button>
-            </Link>
-            <Link href="/employee/requests">
-              <Button className="w-full justify-start h-12" variant="outline">
-                <Inbox className="mr-2 h-4 w-4" /> Submit Request
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+          <Card className="md:col-span-2 lg:col-span-4">
+            <CardHeader>
+              <CardTitle>Quick Links</CardTitle>
+              <CardDescription>Manage your time and view the schedule.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <Link href="/employee/my-shifts">
+                <Button className="w-full justify-start h-12" variant="outline">
+                  <Clock className="mr-2 h-4 w-4" /> View My Shifts
+                </Button>
+              </Link>
+              <Link href="/employee/schedule">
+                <Button className="w-full justify-start h-12" variant="outline">
+                  <CalendarIcon className="mr-2 h-4 w-4" /> View Full Schedule
+                </Button>
+              </Link>
+              <Link href="/employee/weekly-requests">
+                <Button className="w-full justify-start h-12" variant="outline">
+                  <Inbox className="mr-2 h-4 w-4" /> Weekly Request
+                </Button>
+              </Link>
+              <Link href="/employee/availability">
+                <Button className="w-full justify-start h-12" variant="outline">
+                  <CalendarSync className="mr-2 h-4 w-4" /> Availability Template
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
       </div>
     </div>
   );

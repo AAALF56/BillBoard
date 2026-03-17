@@ -22,7 +22,8 @@ import AdminUsers from "@/pages/admin/users";
 import EmployeeDashboard from "@/pages/employee/dashboard";
 import EmployeeMyShifts from "@/pages/employee/my-shifts";
 import EmployeeSchedule from "@/pages/employee/schedule";
-import EmployeeRequests from "@/pages/employee/requests";
+import EmployeeWeeklyRequests from "@/pages/employee/weekly-requests";
+import EmployeeAvailability from "@/pages/employee/availability";
 
 function ProtectedRoute({ component: Component, roleRequired, ...rest }: any) {
   const currentUser = useStore((state) => state.currentUser);
@@ -82,8 +83,11 @@ function Router() {
       <Route path="/employee/schedule">
         {() => <AppLayout><ProtectedRoute component={EmployeeSchedule} roleRequired="EMPLOYEE" /></AppLayout>}
       </Route>
-      <Route path="/employee/requests">
-        {() => <AppLayout><ProtectedRoute component={EmployeeRequests} roleRequired="EMPLOYEE" /></AppLayout>}
+      <Route path="/employee/weekly-requests">
+        {() => <AppLayout><ProtectedRoute component={EmployeeWeeklyRequests} roleRequired="EMPLOYEE" /></AppLayout>}
+      </Route>
+      <Route path="/employee/availability">
+        {() => <AppLayout><ProtectedRoute component={EmployeeAvailability} roleRequired="EMPLOYEE" /></AppLayout>}
       </Route>
 
       <Route component={NotFound} />

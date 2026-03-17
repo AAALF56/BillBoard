@@ -1,7 +1,7 @@
 import { useStore } from "@/store";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Calendar, Users, Clock, Settings, LogOut, LayoutDashboard, CalendarDays, Inbox } from "lucide-react";
+import { Calendar, Users, Clock, LogOut, LayoutDashboard, CalendarDays, Inbox, CalendarSync } from "lucide-react";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const currentUser = useStore((state) => state.currentUser);
@@ -27,7 +27,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     { href: "/employee", label: "Dashboard", icon: LayoutDashboard },
     { href: "/employee/my-shifts", label: "My Shifts", icon: CalendarDays },
     { href: "/employee/schedule", label: "All Shifts", icon: Calendar },
-    { href: "/employee/requests", label: "Requests", icon: Inbox },
+    { href: "/employee/weekly-requests", label: "Weekly Requests", icon: Inbox },
+    { href: "/employee/availability", label: "Availability", icon: CalendarSync },
   ];
 
   const links = currentUser.role === "ADMIN" ? adminLinks : employeeLinks;
@@ -35,7 +36,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-background flex">
       {/* Sidebar */}
-      <aside className="w-64 border-r bg-card flex flex-col hidden md:flex">
+      <aside className="w-64 border-r bg-card flex flex-col hidden md:flex shrink-0">
         <div className="h-16 flex items-center px-6 border-b">
           <h1 className="text-xl font-bold tracking-tight text-primary">Bill Board</h1>
         </div>
@@ -72,15 +73,15 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0">
         {/* Mobile Header */}
-        <header className="h-16 border-b bg-card flex items-center justify-between px-4 md:hidden">
+        <header className="h-16 border-b bg-card flex items-center justify-between px-4 md:hidden shrink-0">
           <h1 className="text-xl font-bold text-primary">Bill Board</h1>
           <Button variant="ghost" size="icon" onClick={handleLogout}>
              <LogOut size={18} />
           </Button>
         </header>
         
-        {/* Mobile Nav (simple version) */}
-        <nav className="flex overflow-x-auto border-b bg-card p-2 gap-2 md:hidden">
+        {/* Mobile Nav */}
+        <nav className="flex overflow-x-auto border-b bg-card p-2 gap-2 md:hidden shrink-0">
             {links.map((link) => {
                const Icon = link.icon;
                return (

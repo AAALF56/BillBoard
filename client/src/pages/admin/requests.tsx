@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Check, X, Calendar as CalendarIcon, Clock } from "lucide-react";
+import { Check, X } from "lucide-react";
 
 export default function AdminRequests() {
   const requests = useStore(state => state.availabilityRequests);
@@ -16,7 +16,7 @@ export default function AdminRequests() {
 
   const getUserName = (userId: string) => users.find(u => u.id === userId)?.name || 'Unknown User';
 
-  const formatDay = (dayNum?: number) => {
+  const formatDayName = (dayNum?: number) => {
     if (dayNum === undefined) return '';
     const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     return days[dayNum];
@@ -42,30 +42,29 @@ export default function AdminRequests() {
         </div>
       </CardHeader>
       <CardContent className="pt-4 space-y-4">
-        <div className="grid grid-cols-2 gap-4 text-sm">
-          <div className="bg-muted/30 p-3 rounded-lg border border-border/50">
-            <span className="text-muted-foreground flex items-center gap-1.5 mb-1"><CalendarIcon size={14}/> Dates</span>
-            <p className="font-medium">
-              {req.type === 'TEMPLATE' 
-                ? formatDay(req.dayOfWeek) 
-                : `${req.startDate} to ${req.endDate}`}
-            </p>
-          </div>
-          <div className="bg-muted/30 p-3 rounded-lg border border-border/50">
-            <span className="text-muted-foreground flex items-center gap-1.5 mb-1"><Clock size={14}/> Time Range</span>
-            <p className="font-medium">{req.startTime} - {req.endTime}</p>
-          </div>
+        {req.type === 'WEEKLY' && req.startDate && req.endDate && (
+          <div className="text-sm font-medium mb-2">Requested Week: {req.startDate} to {req.endDate}</div>
+        )}
+        
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+           {req.days?.map((d: any, i: number) => (
+             <div key={i} className={`p-2 rounded border text-xs ${d.isOff ? 'bg-destructive/10 border-destructive/20 text-destructive font-medium' : 'bg-muted/30 border-border/50'}`}>
+               <div className="font-semibold mb-1 opacity-70 uppercase tracking-wide">{d.date ? d.date : formatDayName(d.dayOfWeek)}</div>
+               <div>{d.isOff ? 'OFF' : `${d.startTime} - ${d.endTime}`}</div>
+             </div>
+           ))}
         </div>
+        
         {req.reason && (
-          <div className="text-sm">
-            <span className="text-muted-foreground font-medium">Reason/Comment:</span>
-            <p className="mt-1 bg-muted/30 p-3 rounded-lg border border-border/50 italic">{req.reason}</p>
+          <div className="text-sm mt-3">
+            <span className="text-muted-foreground font-medium mb-1 block">Reason/Comment:</span>
+            <p className="bg-muted/30 p-3 rounded-lg border border-border/50 italic text-foreground/80">{req.reason}</p>
           </div>
         )}
         
         {!isProcessed && (
           <div className="flex gap-3 pt-2">
-            <Button className="flex-1 bg-green-600 hover:bg-green-700" onClick={() => updateStatus(req.id, 'APPROVED')}>
+            <Button className="flex-1 bg-green-600 hover:bg-green-700 text-white" onClick={() => updateStatus(req.id, 'APPROVED')}>
               <Check className="mr-2 h-4 w-4" /> Approve
             </Button>
             <Button className="flex-1" variant="destructive" onClick={() => updateStatus(req.id, 'DENIED')}>
@@ -74,8 +73,8 @@ export default function AdminRequests() {
           </div>
         )}
         {isProcessed && req.type === 'TEMPLATE' && req.status === 'APPROVED' && (
-           <div className="flex justify-end pt-2">
-              <Button variant="outline" size="sm" className="text-destructive hover:bg-destructive/10" onClick={() => deleteRequest(req.id)}>
+           <div className="flex justify-end pt-2 border-t mt-4">
+              <Button variant="ghost" size="sm" className="text-destructive hover:bg-destructive/10" onClick={() => deleteRequest(req.id)}>
                 Remove Template
               </Button>
            </div>
@@ -85,7 +84,7 @@ export default function AdminRequests() {
   );
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
+    <div className="space-y-6 max-w-5xl mx-auto">
       <div>
         <h2 className="text-3xl font-bold tracking-tight">Requests</h2>
         <p className="text-muted-foreground mt-2">Manage employee availability and schedule requests.</p>
@@ -103,7 +102,7 @@ export default function AdminRequests() {
         
         <TabsContent value="pending" className="mt-6">
           {pendingRequests.length === 0 ? (
-            <div className="text-center py-12 border-2 border-dashed rounded-xl text-muted-foreground">
+            <div className="text-center py-12 border-2 border-dashed rounded-xl text-muted-foreground bg-muted/5">
               No pending requests to review.
             </div>
           ) : (
@@ -113,7 +112,7 @@ export default function AdminRequests() {
         
         <TabsContent value="processed" className="mt-6">
           {processedRequests.length === 0 ? (
-            <div className="text-center py-12 border-2 border-dashed rounded-xl text-muted-foreground">
+            <div className="text-center py-12 border-2 border-dashed rounded-xl text-muted-foreground bg-muted/5">
               No processed requests history.
             </div>
           ) : (

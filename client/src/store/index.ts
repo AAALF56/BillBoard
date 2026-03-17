@@ -29,15 +29,21 @@ export interface Shift {
 
 export type RequestStatus = 'PENDING' | 'APPROVED' | 'DENIED';
 
+export interface DayTimeRange {
+  date?: string; // For WEEKLY
+  dayOfWeek?: number; // 0-6 for TEMPLATE
+  startTime: string;
+  endTime: string;
+  isOff: boolean; // if true, requesting whole day off
+}
+
 export interface AvailabilityRequest {
   id: string;
   userId: string;
   type: 'WEEKLY' | 'TEMPLATE';
   startDate?: string; // For WEEKLY
   endDate?: string;   // For WEEKLY
-  dayOfWeek?: number; // 0-6 for TEMPLATE
-  startTime: string;
-  endTime: string;
+  days: DayTimeRange[];
   reason: string;
   status: RequestStatus;
 }
@@ -157,22 +163,41 @@ export const useStore = create<AppState>()(
       })),
 
       autoSchedule: (weekStartDate) => {
-        // Very basic auto-schedule logic for demo
-        // In a real app, this would respect 10-hour gaps, requests, etc.
         const state = get();
         const employees = state.users.filter(u => u.role === 'EMPLOYEE');
         if (employees.length === 0 || state.shiftTypes.length === 0) return;
 
         const newShifts: Shift[] = [];
+        
         // Loop through 7 days (Thu - Wed)
         for (let i = 0; i < 7; i++) {
           const date = new Date(weekStartDate);
           date.setDate(date.getDate() + i);
           const dateString = date.toISOString().split('T')[0];
+          const dayOfWeek = date.getDay(); // 0-6
 
-          // Assign one random shift to each employee (simplified demo logic)
           employees.forEach((emp, index) => {
-             const shiftType = state.shiftTypes[index % state.shiftTypes.length];
+             // Check if employee has approved time off for this day
+             const hasTimeOff = state.availabilityRequests.some(req => {
+               if (req.status !== 'APPROVED' || req.userId !== emp.id) return false;
+               return req.days.some(d => {
+                 if (req.type === 'WEEKLY' && d.date === dateString && d.isOff) return true;
+                 if (req.type === 'TEMPLATE' && d.dayOfWeek === dayOfWeek && d.isOff) return true;
+                 return false;
+               });
+             });
+
+             if (hasTimeOff) return; // Skip scheduling
+
+             // Check for existing shifts
+             const hasShiftAlready = state.shifts.some(s => s.userId === emp.id && s.date === dateString) || newShifts.some(s => s.userId === emp.id && s.date === dateString);
+             if (hasShiftAlready) return;
+
+             // Assign a shift type (round robin for demo)
+             const shiftType = state.shiftTypes[(index + i) % state.shiftTypes.length];
+             
+             // Realistically check 10h gap here, for mockup we assume standard shifts don't overlap previous day's end with next day's start by less than 10h.
+             
              newShifts.push({
                id: uuidv4(),
                userId: emp.id,
@@ -182,7 +207,9 @@ export const useStore = create<AppState>()(
           });
         }
         
-        set((state) => ({ shifts: [...state.shifts, ...newShifts] }));
+        set((state) => {
+          return { shifts: [...state.shifts, ...newShifts] }
+        });
       }
     }),
     {
