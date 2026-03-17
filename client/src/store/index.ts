@@ -67,7 +67,7 @@ interface AppState {
   swapRequests: SwapRequest[];
 
   // Actions
-  login: (username: string) => void;
+  login: (username: string, password?: string) => boolean;
   logout: () => void;
   
   // Admin actions
@@ -93,10 +93,7 @@ interface AppState {
 }
 
 const mockUsers: User[] = [
-  { id: '1', name: 'Admin User', username: 'admin', role: 'ADMIN' },
-  { id: '2', name: 'John Doe', username: 'john', role: 'EMPLOYEE' },
-  { id: '3', name: 'Jane Smith', username: 'jane', role: 'EMPLOYEE' },
-  { id: '4', name: 'Mike Johnson', username: 'mike', role: 'EMPLOYEE' },
+  { id: '1', name: 'Admin User', username: 'admin', role: 'ADMIN', password: 'password123' },
 ];
 
 const mockShiftTypes: ShiftType[] = [
@@ -115,9 +112,15 @@ export const useStore = create<AppState>()(
       availabilityRequests: [],
       swapRequests: [],
 
-      login: (username) => set((state) => ({ 
-        currentUser: state.users.find(u => u.username === username) || null 
-      })),
+      login: (username, password) => {
+        const state = get();
+        const user = state.users.find(u => u.username === username && u.password === password);
+        if (user) {
+          set({ currentUser: user });
+          return true;
+        }
+        return false;
+      },
       logout: () => set({ currentUser: null }),
 
       addUser: (user) => set((state) => ({ 
@@ -312,6 +315,7 @@ export const useStore = create<AppState>()(
     }),
     {
       name: 'billboard-storage',
+      version: 1, // Bump version to clear old storage
     }
   )
 );

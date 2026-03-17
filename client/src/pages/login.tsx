@@ -6,24 +6,36 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useState } from "react";
 import { Layers } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Login() {
   const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const login = useStore((state) => state.login);
   const [, setLocation] = useLocation();
+  const { toast } = useToast();
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (username) {
-      login(username);
-      // Determine route based on user role
-      const user = useStore.getState().users.find(u => u.username === username);
-      if (user?.role === "ADMIN") {
-        setLocation("/admin");
-      } else if (user?.role === "EMPLOYEE") {
-        setLocation("/employee");
+    if (username && password) {
+      const success = login(username, password);
+      
+      if (success) {
+        // Determine route based on user role
+        const user = useStore.getState().currentUser;
+        if (user?.role === "ADMIN") {
+          setLocation("/admin");
+        } else if (user?.role === "EMPLOYEE") {
+          setLocation("/employee");
+        } else {
+           setLocation("/");
+        }
       } else {
-         setLocation("/");
+        toast({
+          title: "Login Failed",
+          description: "Invalid username or password.",
+          variant: "destructive"
+        });
       }
     }
   };
@@ -36,11 +48,14 @@ export default function Login() {
          </div>
          Bill Board
       </div>
+      <div className="text-center mb-6">
+        <h1 className="text-xl font-medium text-muted-foreground">Workforce & Shift Management</h1>
+      </div>
       <Card className="w-full max-w-md shadow-lg border-border/50">
         <CardHeader className="space-y-1 text-center pb-8">
           <CardTitle className="text-2xl tracking-tight">Welcome back</CardTitle>
           <CardDescription>
-            Enter your username to access your schedule
+            Enter your credentials to access your schedule
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -49,24 +64,29 @@ export default function Login() {
               <Label htmlFor="username">Username</Label>
               <Input 
                 id="username" 
-                placeholder="e.g. admin or john" 
+                placeholder="e.g. admin" 
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 className="h-12"
+                autoComplete="username"
               />
             </div>
-            <Button type="submit" className="w-full h-12 text-base rounded-lg">
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <Input 
+                id="password" 
+                type="password"
+                placeholder="••••••••" 
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="h-12"
+                autoComplete="current-password"
+              />
+            </div>
+            <Button type="submit" className="w-full h-12 text-base rounded-lg" disabled={!username || !password}>
               Sign In
             </Button>
           </form>
-
-          <div className="mt-8 pt-6 border-t border-border/50 text-center">
-             <p className="text-sm text-muted-foreground mb-4 font-medium">Demo Accounts:</p>
-             <div className="flex justify-center gap-4">
-               <Button variant="outline" size="sm" onClick={() => setUsername("admin")}>admin (Admin)</Button>
-               <Button variant="outline" size="sm" onClick={() => setUsername("john")}>john (Employee)</Button>
-             </div>
-          </div>
         </CardContent>
       </Card>
     </div>
