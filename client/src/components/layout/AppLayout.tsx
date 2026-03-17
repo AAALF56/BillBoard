@@ -1,7 +1,7 @@
 import { useStore } from "@/store";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Calendar, Users, Clock, LogOut, LayoutDashboard, CalendarDays, Inbox, CalendarSync } from "lucide-react";
+import { Calendar, Users, Clock, LogOut, LayoutDashboard, CalendarDays, Inbox, CalendarSync, RefreshCw } from "lucide-react";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const currentUser = useStore((state) => state.currentUser);
@@ -27,6 +27,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     { href: "/employee", label: "Dashboard", icon: LayoutDashboard },
     { href: "/employee/my-shifts", label: "My Shifts", icon: CalendarDays },
     { href: "/employee/schedule", label: "All Shifts", icon: Calendar },
+    { href: "/employee/swaps", label: "Shift Swaps", icon: RefreshCw },
     { href: "/employee/weekly-requests", label: "Weekly Requests", icon: Inbox },
     { href: "/employee/availability", label: "Availability", icon: CalendarSync },
   ];
