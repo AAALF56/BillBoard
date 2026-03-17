@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { useStore, ShiftType, Shift, User } from "@/store";
+import { useStore, ShiftType, Shift } from "@/store";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ChevronLeft, ChevronRight, Clock, CalendarDays, RefreshCw } from "lucide-react";
@@ -15,6 +15,7 @@ export default function EmployeeMyShifts() {
   const shiftTypes = useStore(state => state.shiftTypes);
   const shifts = useStore(state => state.shifts);
   const addSwapRequest = useStore(state => state.addSwapRequest);
+  const swapRequests = useStore(state => state.swapRequests);
   
   const [isSwapOpen, setIsSwapOpen] = useState(false);
   const [selectedMyShift, setSelectedMyShift] = useState<Shift | null>(null);
@@ -52,6 +53,14 @@ export default function EmployeeMyShifts() {
     // Only show shifts in the future for swapping
     const todayStr = format(new Date(), "yyyy-MM-dd");
     return shifts.filter(s => s.userId === targetEmployeeId && s.date >= todayStr);
+  };
+
+  // Check if a shift is already part of a pending swap request
+  const isShiftPendingSwap = (shiftId: string) => {
+    return swapRequests.some(r => 
+      r.status === 'PENDING' && 
+      (r.requesterShiftId === shiftId || r.targetShiftId === shiftId)
+    );
   };
 
   return (
@@ -99,11 +108,17 @@ export default function EmployeeMyShifts() {
                                 dayShifts.map(shift => {
                                     const shiftType = shiftTypes.find(st => st.id === shift.shiftTypeId);
                                     if (!shiftType) return null;
+                                    
+                                    const isPending = isShiftPendingSwap(shift.id);
+                                    
                                     return (
                                         <div key={shift.id} className="relative overflow-hidden rounded-xl border p-4 shadow-sm bg-background" style={{ borderLeftColor: shiftType.color, borderLeftWidth: '6px' }}>
                                             <div className="flex justify-between items-start">
                                                 <div>
-                                                    <h4 className="font-semibold text-lg">{shiftType.name}</h4>
+                                                    <h4 className="font-semibold text-lg flex items-center gap-2">
+                                                      {shiftType.name}
+                                                      {isPending && <span className="text-[10px] bg-yellow-500/10 text-yellow-600 px-2 py-0.5 rounded-full border border-yellow-500/20 font-medium uppercase tracking-wider">Swap Pending</span>}
+                                                    </h4>
                                                     <div className="flex items-center text-muted-foreground mt-2 gap-4 text-sm font-medium">
                                                         <span className="flex items-center bg-muted px-2.5 py-1 rounded-md">
                                                             <Clock className="w-4 h-4 mr-2" />
@@ -111,28 +126,32 @@ export default function EmployeeMyShifts() {
                                                         </span>
                                                     </div>
                                                 </div>
-                                                {date >= new Date() && (
+                                                {date >= new Date() && !isPending && (
                                                   <Button 
                                                     variant="outline" 
                                                     size="sm" 
-                                                    className="hidden sm:flex"
+                                                    className="hidden sm:flex shrink-0"
                                                     onClick={() => {
                                                       setSelectedMyShift(shift);
+                                                      setTargetEmployeeId("");
+                                                      setTargetShiftId("");
                                                       setIsSwapOpen(true);
                                                     }}
                                                   >
-                                                    <RefreshCw className="w-3.5 h-3.5 mr-1.5" /> Swap
+                                                    <RefreshCw className="w-3.5 h-3.5 mr-1.5" /> Request Swap
                                                   </Button>
                                                 )}
                                             </div>
                                             {/* Mobile swap button */}
-                                            {date >= new Date() && (
+                                            {date >= new Date() && !isPending && (
                                               <Button 
                                                 variant="outline" 
                                                 size="sm" 
                                                 className="w-full mt-3 sm:hidden"
                                                 onClick={() => {
                                                   setSelectedMyShift(shift);
+                                                  setTargetEmployeeId("");
+                                                  setTargetShiftId("");
                                                   setIsSwapOpen(true);
                                                 }}
                                               >
@@ -151,24 +170,25 @@ export default function EmployeeMyShifts() {
       </Card>
 
       <Dialog open={isSwapOpen} onOpenChange={setIsSwapOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>Request Shift Swap</DialogTitle>
+            <DialogDescription>Select an employee and their shift to propose a trade.</DialogDescription>
           </DialogHeader>
           {selectedMyShift && (
             <form onSubmit={handleSwapSubmit} className="space-y-4 pt-4">
               <div className="p-3 bg-muted/20 border rounded-lg text-sm mb-4">
-                <span className="font-semibold block mb-1">Your Shift to Trade:</span>
-                {format(new Date(selectedMyShift.date), "EEEE, MMM d, yyyy")} • {shiftTypes.find(st => st.id === selectedMyShift.shiftTypeId)?.name}
+                <span className="font-semibold block mb-1 text-muted-foreground">Your Shift to Trade:</span>
+                <span className="font-medium text-base">{format(parseISO(selectedMyShift.date), "EEEE, MMM d, yyyy")}</span> • {shiftTypes.find(st => st.id === selectedMyShift.shiftTypeId)?.name}
               </div>
 
               <div className="space-y-2">
-                <Label>Select Employee to Swap With</Label>
+                <Label>Select Coworker</Label>
                 <Select value={targetEmployeeId} onValueChange={(v) => {
                   setTargetEmployeeId(v);
                   setTargetShiftId(""); // reset shift when employee changes
                 }}>
-                  <SelectTrigger><SelectValue placeholder="Select coworker" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Choose someone to swap with..." /></SelectTrigger>
                   <SelectContent>
                     {employees.map(emp => <SelectItem key={emp.id} value={emp.id}>{emp.name}</SelectItem>)}
                   </SelectContent>
@@ -177,29 +197,37 @@ export default function EmployeeMyShifts() {
 
               {targetEmployeeId && (
                 <div className="space-y-2">
-                  <Label>Select Their Shift</Label>
+                  <Label>Select Their Shift to Take</Label>
                   <Select value={targetShiftId} onValueChange={setTargetShiftId}>
-                    <SelectTrigger><SelectValue placeholder="Select shift to take" /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder="Choose a shift..." /></SelectTrigger>
                     <SelectContent>
                       {getTargetEmployeeShifts().map(shift => {
                         const type = shiftTypes.find(st => st.id === shift.shiftTypeId);
+                        if (!type) return null;
+                        
+                        // Don't allow swapping for a shift on the same day as a shift you already have (unless it's the one you're trading away)
+                        const hasShiftSameDay = shifts.some(s => s.userId === currentUser.id && s.date === shift.date && s.id !== selectedMyShift.id);
+                        if (hasShiftSameDay) return null;
+
                         return (
                           <SelectItem key={shift.id} value={shift.id}>
-                            {format(new Date(shift.date), "MMM d")} - {type?.name} ({type?.startTime}-{type?.endTime})
+                            {format(parseISO(shift.date), "EEE, MMM d")} - {type.name} ({type.startTime}-{type.endTime})
                           </SelectItem>
                         );
                       })}
                       {getTargetEmployeeShifts().length === 0 && (
-                         <SelectItem value="none" disabled>No future shifts available</SelectItem>
+                         <SelectItem value="none" disabled>No eligible shifts available to swap</SelectItem>
                       )}
                     </SelectContent>
                   </Select>
                 </div>
               )}
               
-              <DialogFooter className="pt-4">
+              <DialogFooter className="pt-4 mt-2">
                 <Button type="button" variant="outline" onClick={() => setIsSwapOpen(false)}>Cancel</Button>
-                <Button type="submit" disabled={!targetEmployeeId || !targetShiftId}>Submit Request</Button>
+                <Button type="submit" disabled={!targetEmployeeId || !targetShiftId} className="bg-primary">
+                  <RefreshCw className="w-4 h-4 mr-2" /> Submit Swap Request
+                </Button>
               </DialogFooter>
             </form>
           )}
@@ -207,4 +235,9 @@ export default function EmployeeMyShifts() {
       </Dialog>
     </div>
   );
+}
+// Helper to parse dates without timezone shifting issues
+function parseISO(dateString: string) {
+  const [year, month, day] = dateString.split('-');
+  return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
 }
