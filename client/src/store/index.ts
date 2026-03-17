@@ -262,11 +262,20 @@ export const useStore = create<AppState>()(
                    if (prevShiftData) {
                       const prevShiftType = state.shiftTypes.find(st => st.id === prevShiftData.shiftTypeId);
                       if (prevShiftType) {
-                         const prevEndHour = parseInt(prevShiftType.endTime.split(':')[0]);
-                         const actualPrevEndHour = prevEndHour < parseInt(prevShiftType.startTime.split(':')[0]) ? prevEndHour + 24 : prevEndHour;
+                         const prevEndHourStr = prevShiftType.endTime.split(':')[0];
+                         const prevEndHour = parseInt(prevEndHourStr);
+                         const prevStartHourStr = prevShiftType.startTime.split(':')[0];
+                         const prevStartHour = parseInt(prevStartHourStr);
                          
-                         const nextStartHour = parseInt(potentialShift.startTime.split(':')[0]);
-                         const actualNextStartHour = nextStartHour + 24; // It's the next day
+                         // If end hour is less than start hour, the shift goes overnight
+                         const actualPrevEndHour = prevEndHour < prevStartHour ? prevEndHour + 24 : prevEndHour;
+                         
+                         const nextStartHourStr = potentialShift.startTime.split(':')[0];
+                         const nextStartHour = parseInt(nextStartHourStr);
+                         
+                         // The next shift is strictly on the next day, so we add 24 to its start time
+                         // to compare with the previous day's end time.
+                         const actualNextStartHour = nextStartHour + 24; 
                          
                          const gapHours = actualNextStartHour - actualPrevEndHour;
                          
