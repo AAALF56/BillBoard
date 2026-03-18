@@ -109,6 +109,19 @@ export default function AdminSchedule() {
     
     if (activeData?.type === 'ShiftType') {
       const shiftType = activeData.shiftType as ShiftType;
+      const targetUser = users.find(u => u.id === targetUserId);
+      
+      // Check worker category compatibility
+      const shiftCat = shiftType.category || 'ANY';
+      const empCat = targetUser?.category || 'ANY';
+      if (shiftCat !== 'ANY' && empCat !== shiftCat) {
+        toast({
+          title: "Category Mismatch",
+          description: `Cannot assign a ${shiftCat === 'FULL_TIME' ? 'Full-Time' : 'Part-Time'} shift to a ${empCat === 'FULL_TIME' ? 'Full-Time' : 'Part-Time'} employee.`,
+          variant: "destructive"
+        });
+        return;
+      }
       
       // Check weekly limits before adding manually
       if (shiftType.maxPerWeek !== undefined && shiftType.maxPerWeek > 0) {
@@ -128,6 +141,43 @@ export default function AdminSchedule() {
         }
       }
       
+      // Check employee weekly hours limit
+      if (targetUser && targetUser.maxHours) {
+        const currentWeekStrDates = weekDays.map(d => format(d, "yyyy-MM-dd"));
+        
+        // Calculate current hours
+        const userShiftsThisWeek = shifts.filter(
+          s => s.userId === targetUserId && currentWeekStrDates.includes(s.date)
+        );
+        
+        let currentHours = 0;
+        userShiftsThisWeek.forEach(s => {
+          const sType = shiftTypes.find(st => st.id === s.shiftTypeId);
+          if (sType) {
+            const start = parseInt(sType.startTime.split(':')[0]);
+            const endStr = sType.endTime.split(':')[0];
+            const end = parseInt(endStr);
+            const actualEnd = end < start ? end + 24 : end;
+            currentHours += (actualEnd - start);
+          }
+        });
+        
+        // Calculate new shift hours
+        const newStart = parseInt(shiftType.startTime.split(':')[0]);
+        const newEnd = parseInt(shiftType.endTime.split(':')[0]);
+        const actualNewEnd = newEnd < newStart ? newEnd + 24 : newEnd;
+        const newShiftHours = actualNewEnd - newStart;
+        
+        if (currentHours + newShiftHours > targetUser.maxHours) {
+          toast({
+            title: "Hours Limit Reached",
+            description: `${targetUser.name} is limited to ${targetUser.maxHours}h/week. This shift would put them at ${currentHours + newShiftHours}h.`,
+            variant: "destructive"
+          });
+          return;
+        }
+      }
+      
       addShift({
         userId: targetUserId,
         date: targetDate,
@@ -136,6 +186,63 @@ export default function AdminSchedule() {
     } else if (activeData?.type === 'Shift') {
       const shift = activeData.shift as Shift;
       if (shift.userId !== targetUserId || shift.date !== targetDate) {
+        // Also check constraints when moving an existing shift to a new user
+        if (shift.userId !== targetUserId) {
+          const shiftType = shiftTypes.find(st => st.id === shift.shiftTypeId);
+          const targetUser = users.find(u => u.id === targetUserId);
+          
+          if (shiftType && targetUser) {
+            // Check worker category compatibility
+            const shiftCat = shiftType.category || 'ANY';
+            const empCat = targetUser.category || 'ANY';
+            if (shiftCat !== 'ANY' && empCat !== shiftCat) {
+              toast({
+                title: "Category Mismatch",
+                description: `Cannot assign a ${shiftCat === 'FULL_TIME' ? 'Full-Time' : 'Part-Time'} shift to a ${empCat === 'FULL_TIME' ? 'Full-Time' : 'Part-Time'} employee.`,
+                variant: "destructive"
+              });
+              return;
+            }
+            
+            // Check employee weekly hours limit for the target user
+            if (targetUser.maxHours) {
+              const currentWeekStrDates = weekDays.map(d => format(d, "yyyy-MM-dd"));
+              
+              // Only count shifts if the target date is in the current week view
+              if (currentWeekStrDates.includes(targetDate)) {
+                const userShiftsThisWeek = shifts.filter(
+                  s => s.userId === targetUserId && currentWeekStrDates.includes(s.date) && s.id !== shift.id
+                );
+                
+                let currentHours = 0;
+                userShiftsThisWeek.forEach(s => {
+                  const sType = shiftTypes.find(st => st.id === s.shiftTypeId);
+                  if (sType) {
+                    const start = parseInt(sType.startTime.split(':')[0]);
+                    const end = parseInt(sType.endTime.split(':')[0]);
+                    const actualEnd = end < start ? end + 24 : end;
+                    currentHours += (actualEnd - start);
+                  }
+                });
+                
+                const newStart = parseInt(shiftType.startTime.split(':')[0]);
+                const newEnd = parseInt(shiftType.endTime.split(':')[0]);
+                const actualNewEnd = newEnd < newStart ? newEnd + 24 : newEnd;
+                const newShiftHours = actualNewEnd - newStart;
+                
+                if (currentHours + newShiftHours > targetUser.maxHours) {
+                  toast({
+                    title: "Hours Limit Reached",
+                    description: `${targetUser.name} is limited to ${targetUser.maxHours}h/week. Moving this shift would put them at ${currentHours + newShiftHours}h.`,
+                    variant: "destructive"
+                  });
+                  return;
+                }
+              }
+            }
+          }
+        }
+        
         updateShift(shift.id, { userId: targetUserId, date: targetDate });
       }
     }

@@ -19,14 +19,16 @@ export default function AdminUsers() {
     name: "",
     username: "",
     role: "EMPLOYEE" as "ADMIN" | "EMPLOYEE",
-    password: ""
+    password: "",
+    category: "ANY" as "FULL_TIME" | "PART_TIME" | "ANY",
+    maxHours: 40
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     addUser(formData);
     setIsOpen(false);
-    setFormData({ name: "", username: "", role: "EMPLOYEE", password: "" });
+    setFormData({ name: "", username: "", role: "EMPLOYEE", password: "", category: "ANY", maxHours: 40 });
   };
 
   return (
@@ -66,7 +68,19 @@ export default function AdminUsers() {
                     {user.role === 'ADMIN' ? (
                        <span className="flex items-center text-primary bg-primary/10 px-2 py-0.5 rounded-full"><Shield size={12} className="mr-1" /> Admin</span>
                     ) : (
-                       <span className="flex items-center text-muted-foreground bg-muted px-2 py-0.5 rounded-full"><User size={12} className="mr-1" /> Employee</span>
+                       <>
+                         <span className="flex items-center text-muted-foreground bg-muted px-2 py-0.5 rounded-full"><User size={12} className="mr-1" /> Employee</span>
+                         {user.category && user.category !== 'ANY' && (
+                           <span className="flex items-center text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+                             {user.category === 'FULL_TIME' ? 'Full-Time' : 'Part-Time'}
+                           </span>
+                         )}
+                         {user.maxHours && (
+                           <span className="flex items-center text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+                             Max {user.maxHours}h
+                           </span>
+                         )}
+                       </>
                     )}
                   </div>
                 </div>
@@ -135,6 +149,38 @@ export default function AdminUsers() {
                 </SelectContent>
               </Select>
             </div>
+            {formData.role === 'EMPLOYEE' && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="category">Worker Category</Label>
+                  <Select 
+                    value={formData.category} 
+                    onValueChange={(v: "FULL_TIME" | "PART_TIME" | "ANY") => setFormData({...formData, category: v})}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ANY">Any / No Restriction</SelectItem>
+                      <SelectItem value="FULL_TIME">Full-Time Only</SelectItem>
+                      <SelectItem value="PART_TIME">Part-Time Only</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="maxHours">Max Weekly Hours</Label>
+                  <Input 
+                    id="maxHours" 
+                    type="number"
+                    min="1"
+                    max="168"
+                    value={formData.maxHours}
+                    onChange={(e) => setFormData({...formData, maxHours: parseInt(e.target.value) || 40})}
+                    required
+                  />
+                </div>
+              </>
+            )}
             <DialogFooter className="pt-4">
               <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>Cancel</Button>
               <Button type="submit">Create Account</Button>

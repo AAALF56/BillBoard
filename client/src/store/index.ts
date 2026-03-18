@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
 
 export type Role = 'ADMIN' | 'EMPLOYEE';
+export type WorkerCategory = 'FULL_TIME' | 'PART_TIME' | 'ANY';
 
 export interface User {
   id: string;
@@ -10,6 +11,8 @@ export interface User {
   username: string;
   role: Role;
   password?: string;
+  category?: WorkerCategory;
+  maxHours?: number;
 }
 
 export interface ShiftType {
@@ -19,6 +22,7 @@ export interface ShiftType {
   startTime: string; // "09:00"
   endTime: string;   // "17:00"
   maxPerWeek: number; // max instances allowed per week
+  category?: WorkerCategory;
 }
 
 export interface Shift {
@@ -97,9 +101,9 @@ const mockUsers: User[] = [
 ];
 
 const mockShiftTypes: ShiftType[] = [
-  { id: '1', name: 'Morning', color: '#3b82f6', startTime: '09:00', endTime: '17:00', maxPerWeek: 14 },
-  { id: '2', name: 'Evening', color: '#8b5cf6', startTime: '17:00', endTime: '01:00', maxPerWeek: 14 },
-  { id: '3', name: 'Night', color: '#1e3a8a', startTime: '01:00', endTime: '09:00', maxPerWeek: 7 },
+  { id: '1', name: 'Morning', color: '#3b82f6', startTime: '09:00', endTime: '17:00', maxPerWeek: 14, category: 'ANY' },
+  { id: '2', name: 'Evening', color: '#8b5cf6', startTime: '17:00', endTime: '01:00', maxPerWeek: 14, category: 'ANY' },
+  { id: '3', name: 'Night', color: '#1e3a8a', startTime: '01:00', endTime: '09:00', maxPerWeek: 7, category: 'ANY' },
 ];
 
 export const useStore = create<AppState>()(
@@ -245,6 +249,43 @@ export const useStore = create<AppState>()(
              for (let i = 0; i < sortedShiftTypes.length; i++) {
                 const potentialShift = sortedShiftTypes[(shiftTypeStartIndex + i) % sortedShiftTypes.length];
                 
+                // Check worker category compatibility
+                const empCat = emp.category || 'ANY';
+                const shiftCat = potentialShift.category || 'ANY';
+                if (shiftCat !== 'ANY' && empCat !== shiftCat) {
+                  continue; // Skip, category mismatch
+                }
+                
+                // Check employee weekly hours limit
+                if (emp.maxHours) {
+                  const currentWeekStrDates = weekDays.map(d => d.dateString);
+                  const userShiftsThisWeek = [
+                    ...state.shifts.filter(s => s.userId === emp.id && currentWeekStrDates.includes(s.date)),
+                    ...newShifts.filter(s => s.userId === emp.id)
+                  ];
+                  
+                  let currentHours = 0;
+                  userShiftsThisWeek.forEach(s => {
+                    const sType = state.shiftTypes.find(st => st.id === s.shiftTypeId);
+                    if (sType) {
+                      const start = parseInt(sType.startTime.split(':')[0]);
+                      const endStr = sType.endTime.split(':')[0];
+                      const end = parseInt(endStr);
+                      const actualEnd = end < start ? end + 24 : end;
+                      currentHours += (actualEnd - start);
+                    }
+                  });
+                  
+                  const newStart = parseInt(potentialShift.startTime.split(':')[0]);
+                  const newEnd = parseInt(potentialShift.endTime.split(':')[0]);
+                  const actualNewEnd = newEnd < newStart ? newEnd + 24 : newEnd;
+                  const newShiftHours = actualNewEnd - newStart;
+                  
+                  if (currentHours + newShiftHours > emp.maxHours) {
+                    continue; // Skip, exceeds max hours
+                  }
+                }
+                
                 // Check weekly limit for this shift type
                 if (potentialShift.maxPerWeek !== undefined && potentialShift.maxPerWeek > 0) {
                   const currentWeekStrDates = weekDays.map(d => d.dateString);
@@ -315,7 +356,7 @@ export const useStore = create<AppState>()(
     }),
     {
       name: 'billboard-storage',
-      version: 1, // Bump version to clear old storage
+      version: 2, // Bump version to clear old storage
     }
   )
 );

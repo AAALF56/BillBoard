@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Edit2, Trash2 } from "lucide-react";
 
 export default function AdminShiftBank() {
@@ -21,7 +22,8 @@ export default function AdminShiftBank() {
     color: "#3b82f6",
     startTime: "09:00",
     endTime: "17:00",
-    maxPerWeek: 14
+    maxPerWeek: 14,
+    category: "ANY" as "FULL_TIME" | "PART_TIME" | "ANY"
   });
 
   const handleOpenDialog = (shift?: ShiftType) => {
@@ -31,7 +33,8 @@ export default function AdminShiftBank() {
         color: shift.color,
         startTime: shift.startTime,
         endTime: shift.endTime,
-        maxPerWeek: shift.maxPerWeek ?? 14
+        maxPerWeek: shift.maxPerWeek ?? 14,
+        category: shift.category ?? "ANY"
       });
       setEditingId(shift.id);
     } else {
@@ -40,7 +43,8 @@ export default function AdminShiftBank() {
         color: "#3b82f6",
         startTime: "09:00",
         endTime: "17:00",
-        maxPerWeek: 14
+        maxPerWeek: 14,
+        category: "ANY"
       });
       setEditingId(null);
     }
@@ -82,8 +86,15 @@ export default function AdminShiftBank() {
               <div className="text-sm font-medium bg-muted px-3 py-1.5 rounded-md inline-block">
                 {shift.startTime} - {shift.endTime}
               </div>
-              <div className="text-xs text-muted-foreground mt-2">
-                Max per week: <span className="font-semibold text-foreground">{shift.maxPerWeek ?? '∞'}</span>
+              <div className="flex gap-2 mt-2">
+                <div className="text-xs text-muted-foreground bg-background border px-2 py-0.5 rounded">
+                  Max: <span className="font-semibold text-foreground">{shift.maxPerWeek ?? '∞'}</span>
+                </div>
+                {shift.category && shift.category !== 'ANY' && (
+                  <div className="text-xs text-muted-foreground bg-background border px-2 py-0.5 rounded">
+                    {shift.category === 'FULL_TIME' ? 'Full-Time' : 'Part-Time'}
+                  </div>
+                )}
               </div>
             </CardContent>
             <CardFooter className="pt-0 flex justify-end gap-2 border-t mt-4 py-3 bg-muted/20">
@@ -151,6 +162,22 @@ export default function AdminShiftBank() {
                 onChange={(e) => setFormData({...formData, maxPerWeek: parseInt(e.target.value) || 0})}
                 required
               />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="category">Worker Category</Label>
+              <Select 
+                value={formData.category} 
+                onValueChange={(v: "FULL_TIME" | "PART_TIME" | "ANY") => setFormData({...formData, category: v})}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ANY">Any / No Restriction</SelectItem>
+                  <SelectItem value="FULL_TIME">Full-Time Only</SelectItem>
+                  <SelectItem value="PART_TIME">Part-Time Only</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="color">Color Code</Label>
